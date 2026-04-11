@@ -1,0 +1,477 @@
+# PM8000 Modbus Register Map
+# Based on Schneider Electric PM8000 default Modbus map
+# All registers use Function Code 03 (Read Holding Registers)
+# Data type: FLOAT32 (IEEE 754) = 2 consecutive 16-bit registers
+# Byte order: Big-endian (ABCD) by default - adjust if needed
+#
+# Reference: https://www.se.com/us/en/download/document/PM8000_Modbus_Map/
+#
+# Note: Register addresses may vary by firmware version.
+# Verify against your specific PM8000 firmware documentation.
+
+device:
+  name: "PM8000"
+  manufacturer: "Schneider Electric"
+  default_port: 502
+  default_unit_id: 1
+  byte_order: "big"       # big = ABCD, little = DCBA, swap = CDAB
+  word_order: "big"       # big = high word first
+
+# Register blocks for efficient reading
+# Each block reads a contiguous range of registers in a single Modbus request
+blocks:
+  - name: "voltage_current"
+    start: 2999
+    count: 46
+    description: "Phase voltages, line voltages, currents"
+
+  - name: "power"
+    start: 3053
+    count: 70
+    description: "Active, reactive, apparent power, power factor, frequency"
+
+  - name: "energy"
+    start: 2699
+    count: 24
+    description: "Active, reactive, apparent energy"
+
+  - name: "thd"
+    start: 27368
+    count: 12
+    description: "THD voltage and current"
+
+  - name: "demand"
+    start: 3183
+    count: 20
+    description: "Demand values"
+
+# Individual register definitions
+registers:
+  # ─── Phase Voltages (V) ───
+  - name: "voltage_an"
+    address: 2999
+    type: "float32"
+    unit: "V"
+    phase: "a"
+    category: "voltage"
+    description: "Tensión Fase A-N"
+
+  - name: "voltage_bn"
+    address: 3001
+    type: "float32"
+    unit: "V"
+    phase: "b"
+    category: "voltage"
+    description: "Tensión Fase B-N"
+
+  - name: "voltage_cn"
+    address: 3003
+    type: "float32"
+    unit: "V"
+    phase: "c"
+    category: "voltage"
+    description: "Tensión Fase C-N"
+
+  - name: "voltage_avg_ln"
+    address: 3005
+    type: "float32"
+    unit: "V"
+    phase: "total"
+    category: "voltage"
+    description: "Tensión Promedio L-N"
+
+  # ─── Line Voltages (V) ───
+  - name: "voltage_ab"
+    address: 3019
+    type: "float32"
+    unit: "V"
+    phase: "ab"
+    category: "voltage"
+    description: "Tensión Línea A-B"
+
+  - name: "voltage_bc"
+    address: 3021
+    type: "float32"
+    unit: "V"
+    phase: "bc"
+    category: "voltage"
+    description: "Tensión Línea B-C"
+
+  - name: "voltage_ca"
+    address: 3023
+    type: "float32"
+    unit: "V"
+    phase: "ca"
+    category: "voltage"
+    description: "Tensión Línea C-A"
+
+  - name: "voltage_avg_ll"
+    address: 3025
+    type: "float32"
+    unit: "V"
+    phase: "total"
+    category: "voltage"
+    description: "Tensión Promedio L-L"
+
+  # ─── Currents (A) ───
+  - name: "current_a"
+    address: 3009
+    type: "float32"
+    unit: "A"
+    phase: "a"
+    category: "current"
+    description: "Corriente Fase A"
+
+  - name: "current_b"
+    address: 3011
+    type: "float32"
+    unit: "A"
+    phase: "b"
+    category: "current"
+    description: "Corriente Fase B"
+
+  - name: "current_c"
+    address: 3013
+    type: "float32"
+    unit: "A"
+    phase: "c"
+    category: "current"
+    description: "Corriente Fase C"
+
+  - name: "current_n"
+    address: 3015
+    type: "float32"
+    unit: "A"
+    phase: "n"
+    category: "current"
+    description: "Corriente Neutro"
+
+  - name: "current_avg"
+    address: 3017
+    type: "float32"
+    unit: "A"
+    phase: "total"
+    category: "current"
+    description: "Corriente Promedio"
+
+  # ─── Active Power (W) ───
+  - name: "active_power_a"
+    address: 3053
+    type: "float32"
+    unit: "W"
+    phase: "a"
+    category: "active_power"
+    description: "Potencia Activa Fase A"
+
+  - name: "active_power_b"
+    address: 3055
+    type: "float32"
+    unit: "W"
+    phase: "b"
+    category: "active_power"
+    description: "Potencia Activa Fase B"
+
+  - name: "active_power_c"
+    address: 3057
+    type: "float32"
+    unit: "W"
+    phase: "c"
+    category: "active_power"
+    description: "Potencia Activa Fase C"
+
+  - name: "active_power_total"
+    address: 3059
+    type: "float32"
+    unit: "W"
+    phase: "total"
+    category: "active_power"
+    description: "Potencia Activa Total"
+
+  # ─── Reactive Power (VAR) ───
+  - name: "reactive_power_a"
+    address: 3067
+    type: "float32"
+    unit: "VAR"
+    phase: "a"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase A"
+
+  - name: "reactive_power_b"
+    address: 3069
+    type: "float32"
+    unit: "VAR"
+    phase: "b"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase B"
+
+  - name: "reactive_power_c"
+    address: 3071
+    type: "float32"
+    unit: "VAR"
+    phase: "c"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase C"
+
+  - name: "reactive_power_total"
+    address: 3073
+    type: "float32"
+    unit: "VAR"
+    phase: "total"
+    category: "reactive_power"
+    description: "Potencia Reactiva Total"
+
+  # ─── Apparent Power (VA) ───
+  - name: "apparent_power_a"
+    address: 3081
+    type: "float32"
+    unit: "VA"
+    phase: "a"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase A"
+
+  - name: "apparent_power_b"
+    address: 3083
+    type: "float32"
+    unit: "VA"
+    phase: "b"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase B"
+
+  - name: "apparent_power_c"
+    address: 3085
+    type: "float32"
+    unit: "VA"
+    phase: "c"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase C"
+
+  - name: "apparent_power_total"
+    address: 3087
+    type: "float32"
+    unit: "VA"
+    phase: "total"
+    category: "apparent_power"
+    description: "Potencia Aparente Total"
+
+  # ─── Power Factor ───
+  - name: "power_factor_a"
+    address: 3109
+    type: "float32"
+    unit: ""
+    phase: "a"
+    category: "power_factor"
+    description: "Factor de Potencia Fase A"
+
+  - name: "power_factor_b"
+    address: 3111
+    type: "float32"
+    unit: ""
+    phase: "b"
+    category: "power_factor"
+    description: "Factor de Potencia Fase B"
+
+  - name: "power_factor_c"
+    address: 3113
+    type: "float32"
+    unit: ""
+    phase: "c"
+    category: "power_factor"
+    description: "Factor de Potencia Fase C"
+
+  - name: "power_factor_total"
+    address: 3115
+    type: "float32"
+    unit: ""
+    phase: "total"
+    category: "power_factor"
+    description: "Factor de Potencia Total"
+
+  # ─── Frequency (Hz) ───
+  - name: "frequency"
+    address: 3109
+    type: "float32"
+    unit: "Hz"
+    phase: "total"
+    category: "frequency"
+    description: "Frecuencia"
+
+  # ─── Energy (Wh / VARh / VAh) ───
+  - name: "active_energy_delivered"
+    address: 2699
+    type: "float32"
+    unit: "Wh"
+    phase: "total"
+    category: "energy"
+    description: "Energía Activa Entregada"
+
+  - name: "active_energy_received"
+    address: 2701
+    type: "float32"
+    unit: "Wh"
+    phase: "total"
+    category: "energy"
+    description: "Energía Activa Recibida"
+
+  - name: "reactive_energy_delivered"
+    address: 2707
+    type: "float32"
+    unit: "VARh"
+    phase: "total"
+    category: "energy"
+    description: "Energía Reactiva Entregada"
+
+  - name: "reactive_energy_received"
+    address: 2709
+    type: "float32"
+    unit: "VARh"
+    phase: "total"
+    category: "energy"
+    description: "Energía Reactiva Recibida"
+
+  - name: "apparent_energy"
+    address: 2715
+    type: "float32"
+    unit: "VAh"
+    phase: "total"
+    category: "energy"
+    description: "Energía Aparente"
+
+  # ─── THD Voltage (%) ───
+  - name: "thd_voltage_an"
+    address: 27368
+    type: "float32"
+    unit: "%"
+    phase: "a"
+    category: "thd"
+    description: "THD Tensión Fase A"
+
+  - name: "thd_voltage_bn"
+    address: 27370
+    type: "float32"
+    unit: "%"
+    phase: "b"
+    category: "thd"
+    description: "THD Tensión Fase B"
+
+  - name: "thd_voltage_cn"
+    address: 27372
+    type: "float32"
+    unit: "%"
+    phase: "c"
+    category: "thd"
+    description: "THD Tensión Fase C"
+
+  # ─── THD Current (%) ───
+  - name: "thd_current_a"
+    address: 27374
+    type: "float32"
+    unit: "%"
+    phase: "a"
+    category: "thd"
+    description: "THD Corriente Fase A"
+
+  - name: "thd_current_b"
+    address: 27376
+    type: "float32"
+    unit: "%"
+    phase: "b"
+    category: "thd"
+    description: "THD Corriente Fase B"
+
+  - name: "thd_current_c"
+    address: 27378
+    type: "float32"
+    unit: "%"
+    phase: "c"
+    category: "thd"
+    description: "THD Corriente Fase C"
+
+  # ─── Demand ───
+  - name: "demand_active_power"
+    address: 3183
+    type: "float32"
+    unit: "W"
+    phase: "total"
+    category: "demand"
+    description: "Demanda Potencia Activa"
+
+  - name: "demand_reactive_power"
+    address: 3185
+    type: "float32"
+    unit: "VAR"
+    phase: "total"
+    category: "demand"
+    description: "Demanda Potencia Reactiva"
+
+  - name: "demand_apparent_power"
+    address: 3187
+    type: "float32"
+    unit: "VA"
+    phase: "total"
+    category: "demand"
+    description: "Demanda Potencia Aparente"
+
+  - name: "demand_current_a"
+    address: 3189
+    type: "float32"
+    unit: "A"
+    phase: "a"
+    category: "demand"
+    description: "Demanda Corriente Fase A"
+
+  - name: "demand_current_b"
+    address: 3191
+    type: "float32"
+    unit: "A"
+    phase: "b"
+    category: "demand"
+    description: "Demanda Corriente Fase B"
+
+  - name: "demand_current_c"
+    address: 3193
+    type: "float32"
+    unit: "A"
+    phase: "c"
+    category: "demand"
+    description: "Demanda Corriente Fase C"
+
+  # ─── Max Demand ───
+  - name: "max_demand_active_power"
+    address: 3195
+    type: "float32"
+    unit: "W"
+    phase: "total"
+    category: "demand"
+    description: "Demanda Máxima Potencia Activa"
+
+  - name: "max_demand_apparent_power"
+    address: 3197
+    type: "float32"
+    unit: "VA"
+    phase: "total"
+    category: "demand"
+    description: "Demanda Máxima Potencia Aparente"
+
+  - name: "max_demand_current_a"
+    address: 3199
+    type: "float32"
+    unit: "A"
+    phase: "a"
+    category: "demand"
+    description: "Demanda Máxima Corriente Fase A"
+
+  - name: "max_demand_current_b"
+    address: 3201
+    type: "float32"
+    unit: "A"
+    phase: "b"
+    category: "demand"
+    description: "Demanda Máxima Corriente Fase B"
+
+  - name: "max_demand_current_c"
+    address: 3203
+    type: "float32"
+    unit: "A"
+    phase: "c"
+    category: "demand"
+    description: "Demanda Máxima Corriente Fase C"

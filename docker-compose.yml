@@ -1,0 +1,55 @@
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: monitoreo-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-monitoreo2026}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-monitoreo}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-pm_raw}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-monitoreo-pm8000-token}
+
+  backend:
+    build: ./backend
+    container_name: monitoreo-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      - influxdb
+    environment:
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-monitoreo-pm8000-token}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-monitoreo}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-pm_raw}
+      MODBUS_HOST: ${MODBUS_HOST:-192.168.1.100}
+      MODBUS_PORT: ${MODBUS_PORT:-502}
+      MODBUS_UNIT_ID: ${MODBUS_UNIT_ID:-1}
+      POLL_INTERVAL: ${POLL_INTERVAL:-1.0}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ./backend/app/reports/assets:/app/app/reports/assets
+      - reports-data:/app/reports-output
+      - sqlite-data:/app/data
+
+  frontend:
+    build: ./frontend
+    container_name: monitoreo-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+  reports-data:
+  sqlite-data:

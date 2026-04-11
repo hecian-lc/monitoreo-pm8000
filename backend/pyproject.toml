@@ -1,0 +1,41 @@
+[project]
+name = "monitoreo-pm"
+version = "0.1.0"
+description = "Plataforma de monitoreo para Schneider Electric PM8000"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "websockets>=13.0",
+    # Modbus
+    "pymodbus[serial]>=3.7",
+    # Databases
+    "influxdb-client[async]>=1.46",
+    "ciso8601>=2.3",
+    "aiosqlite>=0.20",
+    # Report generation
+    "python-docx>=1.1",
+    "docx2pdf>=0.1.8",
+    "matplotlib>=3.9",
+    "openpyxl>=3.1",
+    "jinja2>=3.1",
+    # Scheduling
+    "apscheduler>=3.10",
+    # Config
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    # AI (optional)
+    "google-genai>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
