@@ -248,17 +248,32 @@ Cuando ya no necesita datos de alta resolucion (1 segundo), puede comprimir para
 
 ### 11. Generar un Informe
 
-El informe se genera en formato DOCX (Word) o PDF, identico al formato del circutor-report-generator:
+El informe se genera en formato DOCX (Word) o PDF, identico al formato del circutor-report-generator. Toda la configuracion y generacion se hace desde la pagina **Informes**:
 
 1. Ir a **Informes** en el menu lateral
-2. Completar:
+2. Completar el formulario superior:
    - **Medicion**: seleccionar la medicion a reportar
    - **Nombre**: nombre del informe
    - **Formato**: DOCX o PDF
    - **Observaciones**: Automatico (reglas), Gemini AI, o Manual
 3. Clic en **Generar Informe**
-4. El informe se genera en segundo plano (puede tardar 10-30 segundos)
-5. Cuando el estado cambia a **completed**, clic en **Descargar**
+4. Aparece un **modal de confirmacion** con:
+   - Resumen de la medicion, formato y modo de observaciones
+   - Campos editables: **Cliente**, **N Informe**, **Atencion** (pre-cargados de la configuracion guardada)
+5. Clic en **Generar** para confirmar
+6. El informe se genera en segundo plano (puede tardar 10-30 segundos)
+7. Cuando el estado cambia a **completed**, clic en **Descargar**
+
+#### Configuracion del Informe
+
+En la misma pagina de **Informes**, abrir el panel colapsable **"Configuracion del Informe"** para editar:
+
+- **Cliente**, **N Informe**, **Atencion**: Datos que aparecen en la caratula
+- **Objetivo**, **Equipo**, **Periodicidad**: Textos tecnicos del informe
+- **Nombre Firma**, **Cargo**: Datos de quien firma el informe
+- **Colores**: Principal, fases R/S/T, trifasico (para graficos y tablas)
+
+Estos valores se guardan y se pre-cargan en el modal cada vez que se genera un informe.
 
 #### Contenido del informe:
 
@@ -280,35 +295,6 @@ El informe se genera en formato DOCX (Word) o PDF, identico al formato del circu
 - **Gemini AI**: Envia los datos a Gemini y genera observaciones con IA (requiere API key en Configuracion)
 - **Manual**: El usuario escribe sus propias observaciones
 
-### 12. Programar Informes Automaticos
-
-Para generar informes de forma recurrente (ej: todos los lunes a las 8am):
-
-1. Ir a **Informes** > seccion inferior
-2. Los reportes programados se configuran via la API:
-   ```
-   POST /api/reports/schedules
-   {
-     "name": "Reporte semanal TG",
-     "measurement_id": "abc123",
-     "cron_expression": "0 8 * * 1",
-     "config": {"format": "docx", "observaciones_mode": "auto"}
-   }
-   ```
-3. El sistema genera el informe automaticamente segun el cron
-
-### 13. Configuracion de Informes
-
-1. Ir a **Configuracion** en el menu lateral
-2. Completar los datos del informe:
-   - **Cliente**: Nombre del cliente
-   - **N Informe**: Numero correlativo
-   - **Atencion**: Persona de contacto
-   - **Objetivo**, **Equipo**, **Periodicidad**: Textos del informe
-   - **Nombre/Cargo firma**: Datos de quien firma
-   - **Colores**: Principal, fases R/S/T, trifasico
-3. Clic en **Guardar**
-
 #### Imagenes del Informe
 
 Para agregar portada, encabezado y pie de pagina personalizados, copie las imagenes a:
@@ -318,6 +304,22 @@ backend/app/reports/assets/
   encabezado.png    (21x5.28cm)
   pie.png           (21x2.18cm)
 ```
+
+### 12. Programar Informes Automaticos
+
+Para generar informes de forma recurrente (ej: todos los lunes a las 8am):
+
+1. Los reportes programados se configuran via la API:
+   ```
+   POST /api/reports/schedules
+   {
+     "name": "Reporte semanal TG",
+     "measurement_id": "abc123",
+     "cron_expression": "0 8 * * 1",
+     "config": {"format": "docx", "observaciones_mode": "auto"}
+   }
+   ```
+2. El sistema genera el informe automaticamente segun el cron
 
 ---
 
@@ -385,7 +387,7 @@ monitoreo-pm8000/
 │       └── pm2220_default.yaml  # Mapa registros PM2220
 ├── frontend/
 │   └── src/
-│       ├── pages/               # Dashboard, Trends, Data, Devices, Measurements, Reports, Settings
+│       ├── pages/               # Dashboard, Trends, Data, Devices, Measurements, Reports (con config), Settings
 │       ├── components/          # Layout, Dashboard, Charts
 │       ├── api/                 # REST client + WebSocket manager
 │       ├── hooks/               # useRealtimeData, useHistoricalData
