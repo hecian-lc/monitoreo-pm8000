@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { getDevices, createDevice, updateDevice, deleteDevice, testDeviceConnection } from '../api/endpoints';
-import type { Device } from '../types/meter';
+import type { Device, MeterModel } from '../types/meter';
 import { Plus, Pencil, Trash2, Wifi, WifiOff, Loader2, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
+
+const METER_MODELS: { value: MeterModel; label: string }[] = [
+  { value: 'PM8000', label: 'PowerLogic PM8000' },
+  { value: 'PM5340', label: 'PowerLogic PM5340' },
+  { value: 'PM2220', label: 'EasyLogic PM2220' },
+];
 
 export default function Devices() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -12,8 +18,8 @@ export default function Devices() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, boolean>>({});
 
-  // Form state
   const [name, setName] = useState('');
+  const [meterModel, setMeterModel] = useState<MeterModel>('PM8000');
   const [host, setHost] = useState('192.168.1.100');
   const [port, setPort] = useState(502);
   const [unitId, setUnitId] = useState(1);
@@ -29,24 +35,26 @@ export default function Devices() {
   };
 
   const resetForm = () => {
-    setName(''); setHost('192.168.1.100'); setPort(502); setUnitId(1); setPollInterval(1.0);
+    setName(''); setMeterModel('PM8000'); setHost('192.168.1.100');
+    setPort(502); setUnitId(1); setPollInterval(1.0);
     setEditId(null); setShowForm(false);
   };
 
   const handleSubmit = async () => {
     if (!name.trim() || !host.trim()) return;
     if (editId) {
-      await updateDevice(editId, { name, host, port, unit_id: unitId, poll_interval: pollInterval });
+      await updateDevice(editId, { name, meter_model: meterModel, host, port, unit_id: unitId, poll_interval: pollInterval });
     } else {
-      await createDevice({ name, host, port, unit_id: unitId, poll_interval: pollInterval });
+      await createDevice({ name, meter_model: meterModel, host, port, unit_id: unitId, poll_interval: pollInterval });
     }
     resetForm();
     fetchDevices();
   };
 
   const handleEdit = (d: Device) => {
-    setEditId(d.id); setName(d.name); setHost(d.host); setPort(d.port);
-    setUnitId(d.unit_id); setPollInterval(d.poll_interval); setShowForm(true);
+    setEditId(d.id); setName(d.name); setMeterModel(d.meter_model);
+    setHost(d.host); setPort(d.port); setUnitId(d.unit_id);
+    setPollInterval(d.poll_interval); setShowForm(true);
   };
 
   const handleDelete = async (d: Device) => {
@@ -67,6 +75,15 @@ export default function Devices() {
     setTimeout(() => setTestResult(prev => { const n = { ...prev }; delete n[id]; return n; }), 3000);
   };
 
+  const modelBadge = (model: string) => {
+    const colors: Record<string, string> = {
+      PM8000: 'bg-indigo-100 text-indigo-700',
+      PM5340: 'bg-teal-100 text-teal-700',
+      PM2220: 'bg-orange-100 text-orange-700',
+    };
+    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[model] || 'bg-slate-100'}`}>{model}</span>;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -80,9 +97,15 @@ export default function Devices() {
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
           <div className="text-sm font-semibold text-slate-700">{editId ? 'Editar' : 'Nuevo'} Dispositivo</div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="col-span-2 lg:col-span-1">
+            <div>
               <label className="block text-xs text-slate-500 mb-1">Nombre</label>
               <input placeholder="Ej: PM8000 Tablero General" className="w-full border rounded-lg px-3 py-2 text-sm" value={name} onChange={e => setName(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Modelo</label>
+              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={meterModel} onChange={e => setMeterModel(e.target.value as MeterModel)}>
+                {METER_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">IP / Host</label>
@@ -121,6 +144,7 @@ export default function Devices() {
                     : <WifiOff className="w-4 h-4 text-slate-300" />
                   }
                   <span className="font-semibold text-slate-800">{d.name}</span>
+                  {modelBadge(d.meter_model)}
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${d.connected ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                     {d.connected ? 'Conectado' : 'Desconectado'}
                   </span>
@@ -131,11 +155,8 @@ export default function Devices() {
                 </div>
               </div>
               <div className="flex gap-1.5">
-                <button
-                  onClick={() => handleTest(d.id)}
-                  disabled={testing === d.id}
-                  className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-medium flex items-center gap-1"
-                >
+                <button onClick={() => handleTest(d.id)} disabled={testing === d.id}
+                  className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-medium flex items-center gap-1">
                   {testing === d.id ? <Loader2 className="w-3 h-3 animate-spin" /> :
                    testResult[d.id] === true ? <Check className="w-3 h-3 text-green-500" /> :
                    testResult[d.id] === false ? <X className="w-3 h-3 text-red-500" /> :
@@ -154,7 +175,7 @@ export default function Devices() {
         ))}
         {devices.length === 0 && !loading && (
           <div className="text-center text-slate-400 py-12">
-            No hay dispositivos. Agregue un PM8000 para comenzar.
+            No hay dispositivos. Agregue un medidor PM8000, PM5340 o PM2220 para comenzar.
           </div>
         )}
       </div>

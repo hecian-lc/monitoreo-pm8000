@@ -7,7 +7,8 @@ export const getHealth = () => api.get<HealthStatus>('/health');
 
 // Devices
 export const getDevices = () => api.get<Device[]>('/devices');
-export const createDevice = (data: { name: string; host: string; port: number; unit_id?: number; poll_interval?: number }) =>
+export const getDeviceModels = () => api.get<{ model: string; name: string }[]>('/devices/models');
+export const createDevice = (data: { name: string; meter_model: string; host: string; port: number; unit_id?: number; poll_interval?: number }) =>
   api.post<Device>('/devices', data);
 export const getDevice = (id: string) => api.get<Device>(`/devices/${id}`);
 export const updateDevice = (id: string, data: Partial<Device>) =>

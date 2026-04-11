@@ -4,10 +4,20 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 
-from ...models.device import DeviceCreate, DeviceUpdate
+from ...models.device import DeviceCreate, DeviceUpdate, METER_MODELS
 from ..deps import get_collector_manager, get_db
 
 router = APIRouter(prefix="/devices", tags=["devices"])
+
+
+@router.get("/models")
+async def list_meter_models():
+    """List supported meter models."""
+    return [
+        {"model": "PM8000", "name": "PowerLogic PM8000", "register_map": "pm8000_default.yaml"},
+        {"model": "PM5340", "name": "PowerLogic PM5340", "register_map": "pm5340_default.yaml"},
+        {"model": "PM2220", "name": "EasyLogic PM2220", "register_map": "pm2220_default.yaml"},
+    ]
 
 
 @router.get("")
@@ -27,14 +37,16 @@ async def create_device(body: DeviceCreate):
     db = get_db()
     cm = get_collector_manager()
     device_id = str(uuid.uuid4())[:8]
+    register_map = METER_MODELS.get(body.meter_model, "pm8000_default.yaml")
     device = await db.create_device(
         id=device_id,
         name=body.name,
+        meter_model=body.meter_model,
         host=body.host,
         port=body.port,
         unit_id=body.unit_id,
         poll_interval=body.poll_interval,
-        register_map=body.register_map,
+        register_map=register_map,
         byte_order=body.byte_order,
         word_order=body.word_order,
     )
@@ -65,6 +77,9 @@ async def update_device(device_id: str, body: DeviceUpdate):
     updates = body.model_dump(exclude_none=True)
     if "enabled" in updates:
         updates["enabled"] = int(updates["enabled"])
+    # Auto-update register_map when meter_model changes
+    if "meter_model" in updates:
+        updates["register_map"] = METER_MODELS.get(updates["meter_model"], "pm8000_default.yaml")
     if updates:
         await db.update_device(device_id, **updates)
     device = await db.get_device(device_id)

@@ -1,0 +1,369 @@
+# PM5340 / PM5560 / PM556x Series Modbus Register Map
+# Based on PM556x_PublicModbusRegisterList
+# All registers use Function Code 03 (Read Holding Registers)
+# Data types: FLOAT32 (IEEE 754), 4Q_FP_PF (float32 power factor)
+# Units: kW, kVAR, kVA (not W like PM8000)
+
+device:
+  name: "PM5340"
+  manufacturer: "Schneider Electric"
+  default_port: 502
+  default_unit_id: 1
+  byte_order: "big"
+  word_order: "big"
+
+blocks:
+  - name: "current_voltage_power"
+    start: 3000
+    count: 112
+    description: "Currents, voltages, power, power factor, frequency"
+
+  - name: "energy"
+    start: 2700
+    count: 24
+    description: "Active, reactive, apparent energy"
+
+  - name: "thd"
+    start: 21300
+    count: 58
+    description: "THD voltage and current"
+
+registers:
+  # ─── Currents (A) ───
+  - name: "current_a"
+    address: 3000
+    type: "float32"
+    unit: "A"
+    phase: "a"
+    category: "current"
+    description: "Corriente Fase A"
+
+  - name: "current_b"
+    address: 3002
+    type: "float32"
+    unit: "A"
+    phase: "b"
+    category: "current"
+    description: "Corriente Fase B"
+
+  - name: "current_c"
+    address: 3004
+    type: "float32"
+    unit: "A"
+    phase: "c"
+    category: "current"
+    description: "Corriente Fase C"
+
+  - name: "current_n"
+    address: 3006
+    type: "float32"
+    unit: "A"
+    phase: "n"
+    category: "current"
+    description: "Corriente Neutro"
+
+  - name: "current_avg"
+    address: 3010
+    type: "float32"
+    unit: "A"
+    phase: "total"
+    category: "current"
+    description: "Corriente Promedio"
+
+  # ─── Line Voltages (V) ───
+  - name: "voltage_ab"
+    address: 3020
+    type: "float32"
+    unit: "V"
+    phase: "ab"
+    category: "voltage"
+    description: "Tension Linea A-B"
+
+  - name: "voltage_bc"
+    address: 3022
+    type: "float32"
+    unit: "V"
+    phase: "bc"
+    category: "voltage"
+    description: "Tension Linea B-C"
+
+  - name: "voltage_ca"
+    address: 3024
+    type: "float32"
+    unit: "V"
+    phase: "ca"
+    category: "voltage"
+    description: "Tension Linea C-A"
+
+  - name: "voltage_avg_ll"
+    address: 3026
+    type: "float32"
+    unit: "V"
+    phase: "total"
+    category: "voltage"
+    description: "Tension Promedio L-L"
+
+  # ─── Phase Voltages (V) ───
+  - name: "voltage_an"
+    address: 3028
+    type: "float32"
+    unit: "V"
+    phase: "a"
+    category: "voltage"
+    description: "Tension Fase A-N"
+
+  - name: "voltage_bn"
+    address: 3030
+    type: "float32"
+    unit: "V"
+    phase: "b"
+    category: "voltage"
+    description: "Tension Fase B-N"
+
+  - name: "voltage_cn"
+    address: 3032
+    type: "float32"
+    unit: "V"
+    phase: "c"
+    category: "voltage"
+    description: "Tension Fase C-N"
+
+  - name: "voltage_avg_ln"
+    address: 3036
+    type: "float32"
+    unit: "V"
+    phase: "total"
+    category: "voltage"
+    description: "Tension Promedio L-N"
+
+  # ─── Active Power (kW) ───
+  - name: "active_power_a"
+    address: 3054
+    type: "float32"
+    unit: "kW"
+    phase: "a"
+    category: "active_power"
+    description: "Potencia Activa Fase A"
+
+  - name: "active_power_b"
+    address: 3056
+    type: "float32"
+    unit: "kW"
+    phase: "b"
+    category: "active_power"
+    description: "Potencia Activa Fase B"
+
+  - name: "active_power_c"
+    address: 3058
+    type: "float32"
+    unit: "kW"
+    phase: "c"
+    category: "active_power"
+    description: "Potencia Activa Fase C"
+
+  - name: "active_power_total"
+    address: 3060
+    type: "float32"
+    unit: "kW"
+    phase: "total"
+    category: "active_power"
+    description: "Potencia Activa Total"
+
+  # ─── Reactive Power (kVAR) ───
+  - name: "reactive_power_a"
+    address: 3062
+    type: "float32"
+    unit: "kVAR"
+    phase: "a"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase A"
+
+  - name: "reactive_power_b"
+    address: 3064
+    type: "float32"
+    unit: "kVAR"
+    phase: "b"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase B"
+
+  - name: "reactive_power_c"
+    address: 3066
+    type: "float32"
+    unit: "kVAR"
+    phase: "c"
+    category: "reactive_power"
+    description: "Potencia Reactiva Fase C"
+
+  - name: "reactive_power_total"
+    address: 3068
+    type: "float32"
+    unit: "kVAR"
+    phase: "total"
+    category: "reactive_power"
+    description: "Potencia Reactiva Total"
+
+  # ─── Apparent Power (kVA) ───
+  - name: "apparent_power_a"
+    address: 3070
+    type: "float32"
+    unit: "kVA"
+    phase: "a"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase A"
+
+  - name: "apparent_power_b"
+    address: 3072
+    type: "float32"
+    unit: "kVA"
+    phase: "b"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase B"
+
+  - name: "apparent_power_c"
+    address: 3074
+    type: "float32"
+    unit: "kVA"
+    phase: "c"
+    category: "apparent_power"
+    description: "Potencia Aparente Fase C"
+
+  - name: "apparent_power_total"
+    address: 3076
+    type: "float32"
+    unit: "kVA"
+    phase: "total"
+    category: "apparent_power"
+    description: "Potencia Aparente Total"
+
+  # ─── Power Factor (4Q_FP_PF = float32) ───
+  - name: "power_factor_a"
+    address: 3078
+    type: "float32"
+    unit: ""
+    phase: "a"
+    category: "power_factor"
+    description: "Factor de Potencia Fase A"
+
+  - name: "power_factor_b"
+    address: 3080
+    type: "float32"
+    unit: ""
+    phase: "b"
+    category: "power_factor"
+    description: "Factor de Potencia Fase B"
+
+  - name: "power_factor_c"
+    address: 3082
+    type: "float32"
+    unit: ""
+    phase: "c"
+    category: "power_factor"
+    description: "Factor de Potencia Fase C"
+
+  - name: "power_factor_total"
+    address: 3084
+    type: "float32"
+    unit: ""
+    phase: "total"
+    category: "power_factor"
+    description: "Factor de Potencia Total"
+
+  # ─── Frequency (Hz) ───
+  - name: "frequency"
+    address: 3110
+    type: "float32"
+    unit: "Hz"
+    phase: "total"
+    category: "frequency"
+    description: "Frecuencia"
+
+  # ─── Energy (kWh / kVARh / kVAh) ───
+  - name: "active_energy_delivered"
+    address: 2700
+    type: "float32"
+    unit: "kWh"
+    phase: "total"
+    category: "energy"
+    description: "Energia Activa Entregada"
+
+  - name: "active_energy_received"
+    address: 2702
+    type: "float32"
+    unit: "kWh"
+    phase: "total"
+    category: "energy"
+    description: "Energia Activa Recibida"
+
+  - name: "reactive_energy_delivered"
+    address: 2708
+    type: "float32"
+    unit: "kVARh"
+    phase: "total"
+    category: "energy"
+    description: "Energia Reactiva Entregada"
+
+  - name: "reactive_energy_received"
+    address: 2710
+    type: "float32"
+    unit: "kVARh"
+    phase: "total"
+    category: "energy"
+    description: "Energia Reactiva Recibida"
+
+  - name: "apparent_energy_delivered"
+    address: 2716
+    type: "float32"
+    unit: "kVAh"
+    phase: "total"
+    category: "energy"
+    description: "Energia Aparente Entregada"
+
+  # ─── THD Voltage (%) ───
+  - name: "thd_voltage_an"
+    address: 21330
+    type: "float32"
+    unit: "%"
+    phase: "a"
+    category: "thd"
+    description: "THD Tension Fase A-N"
+
+  - name: "thd_voltage_bn"
+    address: 21332
+    type: "float32"
+    unit: "%"
+    phase: "b"
+    category: "thd"
+    description: "THD Tension Fase B-N"
+
+  - name: "thd_voltage_cn"
+    address: 21334
+    type: "float32"
+    unit: "%"
+    phase: "c"
+    category: "thd"
+    description: "THD Tension Fase C-N"
+
+  # ─── THD Current (%) ───
+  - name: "thd_current_a"
+    address: 21300
+    type: "float32"
+    unit: "%"
+    phase: "a"
+    category: "thd"
+    description: "THD Corriente Fase A"
+
+  - name: "thd_current_b"
+    address: 21302
+    type: "float32"
+    unit: "%"
+    phase: "b"
+    category: "thd"
+    description: "THD Corriente Fase B"
+
+  - name: "thd_current_c"
+    address: 21304
+    type: "float32"
+    unit: "%"
+    phase: "c"
+    category: "thd"
+    description: "THD Corriente Fase C"

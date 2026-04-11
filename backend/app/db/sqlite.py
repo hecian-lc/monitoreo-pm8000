@@ -14,6 +14,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    meter_model TEXT DEFAULT 'PM8000',
     host TEXT NOT NULL DEFAULT '192.168.1.100',
     port INTEGER DEFAULT 502,
     unit_id INTEGER DEFAULT 1,
@@ -120,15 +121,16 @@ class Database:
     # ─── Devices ───
 
     async def create_device(
-        self, id: str, name: str, host: str = "192.168.1.100",
+        self, id: str, name: str, meter_model: str = "PM8000",
+        host: str = "192.168.1.100",
         port: int = 502, unit_id: int = 1, poll_interval: float = 1.0,
         register_map: str = "pm8000_default.yaml",
         byte_order: str = "big", word_order: str = "big",
     ) -> dict:
         now = datetime.utcnow().isoformat()
         await self._db.execute(
-            "INSERT INTO devices (id, name, host, port, unit_id, poll_interval, register_map, byte_order, word_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (id, name, host, port, unit_id, poll_interval, register_map, byte_order, word_order, now),
+            "INSERT INTO devices (id, name, meter_model, host, port, unit_id, poll_interval, register_map, byte_order, word_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (id, name, meter_model, host, port, unit_id, poll_interval, register_map, byte_order, word_order, now),
         )
         await self._db.commit()
         return await self.get_device(id)

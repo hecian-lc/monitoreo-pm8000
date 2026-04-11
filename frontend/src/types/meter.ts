@@ -1,6 +1,9 @@
+export type MeterModel = 'PM8000' | 'PM5340' | 'PM2220';
+
 export interface Device {
   id: string;
   name: string;
+  meter_model: MeterModel;
   host: string;
   port: number;
   unit_id: number;
