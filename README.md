@@ -1,17 +1,27 @@
-# Monitoreo PM8000
+# Monitoreo PM
 
-Plataforma de monitoreo en la nube para medidores **Schneider Electric PM8000**. Adquisicion de datos en tiempo real via Modbus TCP, almacenamiento en InfluxDB, dashboard web interactivo, y generacion automatica de informes tecnicos DOCX/PDF.
+Plataforma de monitoreo en la nube para medidores **Schneider Electric** de la serie PowerLogic y EasyLogic. Soporta multiples dispositivos simultaneos con adquisicion de datos en tiempo real via Modbus TCP, almacenamiento en InfluxDB, dashboard web interactivo, y generacion automatica de informes tecnicos DOCX/PDF.
+
+## Medidores Soportados
+
+| Modelo | Serie | Comunicacion | Registros |
+|--------|-------|-------------|-----------|
+| **PM8000** | PowerLogic PM8000 | Modbus TCP / RTU | Voltaje, corriente, potencia, FP, THD, armonicos, energia, demanda |
+| **PM5340** | PowerLogic PM5000 | Modbus TCP / RTU | Voltaje, corriente, potencia, FP, THD, energia |
+| **PM2220** | EasyLogic PM2000 | Modbus RTU | Voltaje, corriente, potencia, FP, THD, energia |
+
+Todos los medidores se configuran desde la interfaz web. Se pueden agregar, modificar y eliminar dispositivos en cualquier momento. Cada uno tiene su propia conexion Modbus, mapa de registros y ciclo de polling independiente.
 
 ## Arquitectura
 
 ```
-PM8000 (RS-485/TCP) --> Gateway (RPi / ESP32 / Comercial) --> Tailscale VPN --> Backend (FastAPI)
-                                                                                    |
-                                                                              InfluxDB + SQLite
-                                                                                    |
-                                                                              WebSocket + REST API
-                                                                                    |
-                                                                              Frontend (React)
+Medidores (RS-485/TCP)  -->  Gateways (RPi / ESP32 / Comercial)  -->  Tailscale VPN
+                                                                           |
+                                                                     Backend (FastAPI)
+                                                                           |
+                                                              InfluxDB + SQLite + WebSocket
+                                                                           |
+                                                                     Frontend (React)
 ```
 
 | Componente | Tecnologia |
@@ -25,14 +35,16 @@ PM8000 (RS-485/TCP) --> Gateway (RPi / ESP32 / Comercial) --> Tailscale VPN --> 
 
 ## Funcionalidades
 
+- **Multi-dispositivo** - Agregar, modificar y eliminar multiples medidores (PM8000, PM5340, PM2220), cada uno con su propia conexion y polling
 - **Dashboard en tiempo real** - Voltaje, corriente, potencia, FP, THD, frecuencia con actualizacion cada 1 segundo
-- **Mediciones nombradas** - Crear sesiones de grabacion con nombre, iniciar/detener/comprimir/eliminar
+- **Mediciones nombradas** - Crear sesiones de grabacion vinculadas a un dispositivo, iniciar/detener/comprimir/eliminar
 - **Tendencias** - Graficas interactivas con zoom, selector de variables y rangos temporales
 - **Tabla de datos** - Visualizacion tabular con filtros y exportacion CSV/XLSX
 - **Informes automaticos** - DOCX/PDF con portada, tabla resumen 21x8, graficos, observaciones (reglas ANDE/IEEE 519 o Gemini AI)
 - **Reportes programados** - Trigger manual o automatico por cron (fecha/hora)
 - **Downsampling automatico** - 4 niveles de resolucion (1s, 1min, 15min, 1h) con retencion configurable
 - **3 opciones de gateway** - Raspberry Pi, ESP32, o gateway comercial (USR-W610, Teltonika)
+- **Test de conexion** - Verificar conectividad Modbus desde la interfaz web antes de iniciar mediciones
 
 ---
 
@@ -43,7 +55,7 @@ PM8000 (RS-485/TCP) --> Gateway (RPi / ESP32 / Comercial) --> Tailscale VPN --> 
 - **Docker** y **Docker Compose** (para InfluxDB)
 - **Python 3.11+** (backend)
 - **Node.js 18+** (frontend)
-- Un gateway conectado al PM8000 (ver seccion Gateways)
+- Un gateway conectado al medidor (ver seccion Gateways)
 
 ### 1. Clonar el repositorio
 
@@ -58,21 +70,17 @@ cd monitoreo-pm8000
 cp .env.example .env
 ```
 
-Editar `.env` con la IP de su gateway y credenciales:
+Editar `.env`:
 
 ```env
-# IP del gateway (RPi, ESP32, o comercial) en la red o Tailscale
-MODBUS_HOST=192.168.1.100
-MODBUS_PORT=502
-MODBUS_UNIT_ID=1
-POLL_INTERVAL=1.0
-
 # InfluxDB (dejar valores por defecto para desarrollo)
 INFLUXDB_TOKEN=monitoreo-pm8000-token
 
 # Gemini AI (opcional, para observaciones con IA en informes)
 GEMINI_API_KEY=
 ```
+
+> La configuracion de conexion Modbus ahora se hace por dispositivo desde la interfaz web (Dispositivos), no por variables de entorno.
 
 ### 3. Levantar InfluxDB
 
@@ -117,31 +125,64 @@ Acceder a:
 
 ## Manual de Uso
 
-### 1. Crear una Medicion
+### 1. Agregar un Dispositivo
 
-Una **medicion** es una sesion de grabacion de datos con nombre. Cada medicion almacena sus datos de forma independiente.
+Antes de crear mediciones, debe agregar al menos un medidor:
+
+1. Ir a **Dispositivos** en el menu lateral
+2. Clic en **Agregar Dispositivo**
+3. Completar:
+   - **Nombre**: Ej: "PM8000 Tablero General"
+   - **Modelo**: PM8000, PM5340 o PM2220
+   - **IP / Host**: IP del gateway o del medidor (ej: 192.168.1.100)
+   - **Puerto**: 502 (por defecto Modbus TCP)
+   - **Unit ID**: 1 (por defecto)
+   - **Intervalo**: 1.0 segundos
+4. Clic en **Crear**
+5. Usar el boton **Test** para verificar la conexion Modbus
+
+> El sistema selecciona automaticamente el mapa de registros correcto segun el modelo. Cada dispositivo tiene su propio ciclo de polling independiente.
+
+### 2. Gestionar Dispositivos
+
+En la pagina **Dispositivos**:
+
+- **Test**: Verifica la conexion Modbus al medidor. Muestra check verde si conecta o X roja si falla
+- **Editar**: Modificar nombre, modelo, IP, puerto o intervalo. Al cambiar de modelo se actualiza automaticamente el mapa de registros
+- **Eliminar**: Elimina el dispositivo y TODAS sus mediciones y datos asociados
+
+Los badges de color indican el modelo:
+- **PM8000** (indigo) - PowerLogic PM8000
+- **PM5340** (teal) - PowerLogic PM5340
+- **PM2220** (naranja) - EasyLogic PM2220
+
+### 3. Crear una Medicion
+
+Una **medicion** es una sesion de grabacion de datos vinculada a un dispositivo especifico.
 
 1. Ir a **Mediciones** en el menu lateral
 2. Clic en **Nueva Medicion**
 3. Completar:
+   - **Dispositivo**: Seleccionar el medidor a utilizar
    - **Nombre**: Ej: "TG Principal - Abril 2026"
-   - **Descripcion**: Opcional, ej: "Medicion semanal tablero general"
+   - **Descripcion**: Opcional
    - **Punto de medicion**: Ej: "T.G. - Corte General"
 4. Clic en **Crear**
 
-### 2. Iniciar la Grabacion
+### 4. Iniciar la Grabacion
 
 1. En la lista de mediciones, buscar la medicion creada
 2. Clic en el boton **Play** (verde) para iniciar
 3. El estado cambia a **Grabando** y el indicador rojo aparece en el header
-4. Los datos del PM8000 se almacenan automaticamente cada 1 segundo
+4. Los datos del medidor se almacenan automaticamente cada 1 segundo
 
-> Solo puede haber una medicion grabando a la vez. Al iniciar una nueva, la anterior se detiene automaticamente.
+> Cada dispositivo puede tener una medicion grabando a la vez. Distintos dispositivos pueden grabar simultaneamente.
 
-### 3. Ver Datos en Tiempo Real (Dashboard)
+### 5. Ver Datos en Tiempo Real (Dashboard)
 
 1. Ir a **Dashboard** en el menu lateral
-2. Se muestran todos los parametros electricos en tiempo real:
+2. Si hay multiples dispositivos, usar el selector en la esquina superior
+3. Se muestran todos los parametros electricos en tiempo real:
    - **Tension de fase**: VAN, VBN, VCN (V)
    - **Tension de linea**: VAB, VBC, VCA (V)
    - **Corriente**: IA, IB, IC (A)
@@ -149,9 +190,9 @@ Una **medicion** es una sesion de grabacion de datos con nombre. Cada medicion a
    - **Factor de potencia**: cos(phi) por fase y total
    - **THD**: Distorsion armonica de tension y corriente (%)
    - **Frecuencia**: Hz
-3. El indicador de conexion en la esquina superior derecha muestra el estado del medidor
+4. El indicador de conexion en la esquina superior derecha muestra el estado
 
-### 4. Ver Tendencias (Graficas)
+### 6. Ver Tendencias (Graficas)
 
 1. Ir a **Tendencias** en el menu lateral
 2. Seleccionar:
@@ -166,7 +207,7 @@ Una **medicion** es una sesion de grabacion de datos con nombre. Cada medicion a
    - < 30 dias: promedio cada 15 minutos
    - Mas de 30 dias: promedio cada 1 hora
 
-### 5. Tabla de Datos
+### 7. Tabla de Datos
 
 1. Ir a **Datos** en el menu lateral
 2. Seleccionar **Medicion**, **Fecha inicio** y **Fecha fin**
@@ -176,14 +217,14 @@ Una **medicion** es una sesion de grabacion de datos con nombre. Cada medicion a
    - Clic en **CSV** para descargar archivo separado por punto y coma
    - Clic en **Excel** para descargar archivo .xlsx
 
-### 6. Detener una Medicion
+### 8. Detener una Medicion
 
 1. Ir a **Mediciones**
 2. Clic en el boton **Stop** (rojo) en la medicion activa
 3. El estado cambia a **Detenida**
 4. Los datos quedan almacenados y disponibles para consulta
 
-### 7. Comprimir una Medicion
+### 9. Comprimir una Medicion
 
 Cuando ya no necesita datos de alta resolucion (1 segundo), puede comprimir para ahorrar espacio:
 
@@ -196,7 +237,7 @@ Cuando ya no necesita datos de alta resolucion (1 segundo), puede comprimir para
 
 > La compresion es irreversible. Los datos de 1 segundo se eliminan permanentemente.
 
-### 8. Eliminar una Medicion
+### 10. Eliminar una Medicion
 
 1. Ir a **Mediciones**
 2. Clic en el icono **Eliminar** (papelera)
@@ -205,7 +246,7 @@ Cuando ya no necesita datos de alta resolucion (1 segundo), puede comprimir para
 
 > La eliminacion es permanente e irreversible.
 
-### 9. Generar un Informe
+### 11. Generar un Informe
 
 El informe se genera en formato DOCX (Word) o PDF, identico al formato del circutor-report-generator:
 
@@ -239,7 +280,7 @@ El informe se genera en formato DOCX (Word) o PDF, identico al formato del circu
 - **Gemini AI**: Envia los datos a Gemini y genera observaciones con IA (requiere API key en Configuracion)
 - **Manual**: El usuario escribe sus propias observaciones
 
-### 10. Programar Informes Automaticos
+### 12. Programar Informes Automaticos
 
 Para generar informes de forma recurrente (ej: todos los lunes a las 8am):
 
@@ -256,30 +297,17 @@ Para generar informes de forma recurrente (ej: todos los lunes a las 8am):
    ```
 3. El sistema genera el informe automaticamente segun el cron
 
-### 11. Configuracion
-
-#### Conexion Modbus
+### 13. Configuracion de Informes
 
 1. Ir a **Configuracion** en el menu lateral
-2. Seccion **Conexion Modbus**:
-   - **IP del Gateway**: IP del dispositivo gateway (o IP Tailscale)
-   - **Puerto**: 502 (por defecto para Modbus TCP)
-   - **Unit ID**: 1 (por defecto para PM8000)
-   - **Intervalo**: 1.0 segundos (frecuencia de polling)
-3. Clic en **Guardar**
-
-> Los cambios de conexion requieren reiniciar el backend para aplicarse.
-
-#### Configuracion de Informes
-
-1. Seccion **Configuracion de Informes**:
-   - **Cliente**: Nombre del cliente para el informe
-   - **N Informe**: Numero correlativo del informe
+2. Completar los datos del informe:
+   - **Cliente**: Nombre del cliente
+   - **N Informe**: Numero correlativo
    - **Atencion**: Persona de contacto
    - **Objetivo**, **Equipo**, **Periodicidad**: Textos del informe
    - **Nombre/Cargo firma**: Datos de quien firma
    - **Colores**: Principal, fases R/S/T, trifasico
-2. Clic en **Guardar**
+3. Clic en **Guardar**
 
 #### Imagenes del Informe
 
@@ -295,7 +323,7 @@ backend/app/reports/assets/
 
 ## Gateways
 
-El PM8000 habla Modbus RTU (RS-485) o Modbus TCP (Ethernet). Se necesita un gateway para conectarlo a la red/WiFi/4G.
+Los medidores hablan Modbus RTU (RS-485) o Modbus TCP (Ethernet). Se necesita un gateway para conectarlos a la red/WiFi/4G.
 
 ### Opcion 1: Raspberry Pi
 
@@ -311,7 +339,7 @@ Ver `infra/gateway/rpi/setup.sh` para detalles.
 
 ### Opcion 2: ESP32
 
-La opcion mas economica (~$5 USD). El ESP32 conecta al PM8000 por RS-485 y sirve Modbus TCP por WiFi.
+La opcion mas economica (~$5 USD). El ESP32 conecta al medidor por RS-485 y sirve Modbus TCP por WiFi.
 
 ```bash
 cd infra/gateway/esp32
@@ -331,7 +359,7 @@ Para instalaciones industriales que requieren confiabilidad maxima:
 
 ### Conexion directa por Ethernet
 
-Si el PM8000 tiene puerto Ethernet y esta en la misma red que el servidor, no necesita gateway. Configure `MODBUS_HOST` con la IP del PM8000 directamente.
+Si el medidor tiene puerto Ethernet (PM8000) y esta en la misma red que el servidor, no necesita gateway. Agregue el dispositivo con la IP del medidor directamente.
 
 ---
 
@@ -345,17 +373,19 @@ monitoreo-pm8000/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app + lifespan
 │   │   ├── config.py            # Configuracion via env vars
-│   │   ├── collector/           # Modbus polling + InfluxDB writer
+│   │   ├── collector/           # CollectorManager + polling multi-device
 │   │   ├── db/                  # InfluxDB + SQLite
 │   │   ├── api/endpoints/       # REST + WebSocket endpoints
 │   │   ├── reports/             # DOCX/PDF generation
 │   │   ├── scheduler/           # APScheduler (reportes automaticos)
 │   │   └── models/              # Pydantic models
 │   └── registers/
-│       └── pm8000_default.yaml  # Mapa de registros Modbus PM8000
+│       ├── pm8000_default.yaml  # Mapa registros PM8000
+│       ├── pm5340_default.yaml  # Mapa registros PM5340
+│       └── pm2220_default.yaml  # Mapa registros PM2220
 ├── frontend/
 │   └── src/
-│       ├── pages/               # Dashboard, Trends, Data, Measurements, Reports, Settings
+│       ├── pages/               # Dashboard, Trends, Data, Devices, Measurements, Reports, Settings
 │       ├── components/          # Layout, Dashboard, Charts
 │       ├── api/                 # REST client + WebSocket manager
 │       ├── hooks/               # useRealtimeData, useHistoricalData
@@ -371,7 +401,12 @@ Documentacion interactiva disponible en http://localhost:8000/docs (Swagger UI)
 
 | Metodo | Ruta | Descripcion |
 |--------|------|-------------|
-| GET | `/api/health` | Estado del sistema y conexion |
+| GET | `/api/health` | Estado del sistema y todos los dispositivos |
+| GET | `/api/devices/models` | Listar modelos de medidores soportados |
+| GET/POST | `/api/devices` | Listar/crear dispositivos |
+| PUT | `/api/devices/{id}` | Modificar dispositivo |
+| DELETE | `/api/devices/{id}` | Eliminar dispositivo y sus datos |
+| POST | `/api/devices/{id}/test` | Probar conexion Modbus |
 | GET/POST | `/api/measurements` | Listar/crear mediciones |
 | POST | `/api/measurements/{id}/action` | Iniciar/detener/comprimir |
 | DELETE | `/api/measurements/{id}` | Eliminar medicion y datos |
@@ -381,6 +416,7 @@ Documentacion interactiva disponible en http://localhost:8000/docs (Swagger UI)
 | GET | `/api/export/xlsx` | Exportar datos como Excel |
 | POST | `/api/reports/generate` | Generar informe DOCX/PDF |
 | GET | `/api/reports/{id}/download` | Descargar informe |
+| GET/PUT | `/api/reports/config` | Config de informes |
 | WS | `/ws/realtime` | WebSocket datos en tiempo real |
 
 ## Licencia
