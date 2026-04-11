@@ -11,9 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from .api import deps
 from .api.router import api_router, ws_router
 from .collector.broadcast import BroadcastManager
-from .collector.modbus_client import PM8000Client
-from .collector.register_map import load_register_map
-from .collector.service import CollectorService
+from .collector.service import CollectorManager
 from .collector.writer import InfluxWriter
 from .config import settings
 from .db.influx import create_influx_client, setup_buckets, setup_downsampling_tasks
@@ -32,80 +30,65 @@ async def lifespan(app: FastAPI):
     """Manage startup and shutdown of all services."""
     logger.info("Starting Monitoreo PM8000...")
 
-    # 1. Load register map
-    register_map_path = settings.base_dir / settings.register_map_path
-    register_map = load_register_map(register_map_path)
-    logger.info(
-        f"Loaded {len(register_map.registers)} registers "
-        f"in {len(register_map.blocks)} blocks"
-    )
-
-    # 2. Connect to SQLite
+    # 1. Connect to SQLite
     sqlite_path = settings.base_dir / settings.sqlite_path
     db = Database(str(sqlite_path))
     await db.connect()
     deps.db = db
 
-    # Load device config from DB (may override env defaults)
-    device_config = await db.get_device_config()
-
-    # 3. Connect to InfluxDB
+    # 2. Connect to InfluxDB
     influx_client = await create_influx_client()
     deps.influx_client = influx_client
 
-    # Setup buckets and downsampling
     try:
         await setup_buckets(influx_client)
         await setup_downsampling_tasks(influx_client)
     except Exception as e:
         logger.warning(f"InfluxDB setup warning: {e}")
 
-    # 4. Create broadcast manager
+    # 3. Create broadcast manager
     broadcast = BroadcastManager()
     deps.broadcast = broadcast
 
-    # 5. Create Modbus client
-    modbus_host = device_config.get("host", settings.modbus_host)
-    modbus_port = device_config.get("port", settings.modbus_port)
-    modbus_unit = device_config.get("unit_id", settings.modbus_unit_id)
-    poll_interval = device_config.get("poll_interval", settings.poll_interval)
+    # 4. Load register maps directory
+    register_maps_dir = settings.base_dir / "registers"
 
-    modbus_client = PM8000Client(
-        host=modbus_host,
-        port=modbus_port,
-        unit_id=modbus_unit,
-    )
-
-    # 6. Create InfluxDB writer
+    # 5. Create InfluxDB writer
+    from .collector.register_map import load_register_map
+    default_map = load_register_map(register_maps_dir / "pm8000_default.yaml")
     writer = InfluxWriter(
         client=influx_client,
         bucket=settings.influxdb_bucket,
         org=settings.influxdb_org,
-        register_map=register_map,
+        register_map=default_map,
     )
 
-    # 7. Create and start collector service
-    collector = CollectorService(
-        modbus_client=modbus_client,
+    # 6. Create CollectorManager for multi-device support
+    collector_manager = CollectorManager(
         influx_writer=writer,
-        register_map=register_map,
         broadcast=broadcast,
-        poll_interval=poll_interval,
+        register_maps_dir=register_maps_dir,
     )
-    deps.collector = collector
+    deps.collector_manager = collector_manager
 
-    # Check for any measurement that was recording when we last shut down
+    # 7. Load all devices from DB and start their collectors
+    devices = await db.list_devices()
+    for device in devices:
+        try:
+            await collector_manager.add_device(device)
+        except Exception as e:
+            logger.error(f"Failed to start collector for device {device['id']}: {e}")
+
+    # 8. Resume any measurements that were recording
     measurements = await db.list_measurements()
     for m in measurements:
         if m["status"] == "recording":
-            collector.set_measurement(m["id"])
-            logger.info(f"Resuming measurement: {m['name']} ({m['id']})")
-            break
+            collector = collector_manager.get_collector(m["device_id"])
+            if collector:
+                collector.set_measurement(m["id"])
+                logger.info(f"Resuming measurement: {m['name']} ({m['id']}) on device {m['device_id']}")
 
-    # Start collector (it will connect to Modbus on first cycle)
-    await collector.start()
-
-    # 8. Start scheduler for automatic reports
+    # 9. Start scheduler for automatic reports
     scheduler = SchedulerService(db=db, influx_client=influx_client)
     await scheduler.start()
 
@@ -114,16 +97,15 @@ async def lifespan(app: FastAPI):
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Monitoreo PM8000 ready!")
-    logger.info(f"  Modbus: {modbus_host}:{modbus_port} (unit {modbus_unit})")
+    logger.info(f"  Devices loaded: {len(devices)}")
     logger.info(f"  InfluxDB: {settings.influxdb_url}")
-    logger.info(f"  Poll interval: {poll_interval}s")
 
     yield
 
     # Shutdown
     logger.info("Shutting down...")
     await scheduler.stop()
-    await collector.stop()
+    await collector_manager.stop_all()
     await influx_client.close()
     await db.close()
     logger.info("Shutdown complete")

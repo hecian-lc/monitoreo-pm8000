@@ -41,6 +41,7 @@ class BroadcastManager:
         self,
         readings: dict[str, Any],
         connected: bool,
+        device_id: str | None = None,
         measurement_id: str | None = None,
     ):
         """Send readings to all connected WebSocket clients."""
@@ -54,6 +55,7 @@ class BroadcastManager:
                 "type": "readings",
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "connected": connected,
+                "device_id": device_id,
                 "measurement_id": measurement_id,
                 "data": readings,
             },

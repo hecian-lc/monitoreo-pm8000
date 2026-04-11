@@ -1,12 +1,12 @@
 """Dependency injection for API endpoints."""
 
 from ..collector.broadcast import BroadcastManager
-from ..collector.service import CollectorService
+from ..collector.service import CollectorManager
 from ..db.sqlite import Database
 
 # These are set during app startup (lifespan)
 db: Database | None = None
-collector: CollectorService | None = None
+collector_manager: CollectorManager | None = None
 broadcast: BroadcastManager | None = None
 influx_client = None  # InfluxDBClientAsync
 
@@ -16,9 +16,9 @@ def get_db() -> Database:
     return db
 
 
-def get_collector() -> CollectorService:
-    assert collector is not None, "Collector not initialized"
-    return collector
+def get_collector_manager() -> CollectorManager:
+    assert collector_manager is not None, "CollectorManager not initialized"
+    return collector_manager
 
 
 def get_broadcast() -> BroadcastManager:

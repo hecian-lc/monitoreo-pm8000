@@ -1,13 +1,24 @@
 import api from './client';
-import type { Measurement, HealthStatus, DeviceConfig, DataRecord } from '../types/meter';
+import type { Device, Measurement, HealthStatus, DataRecord } from '../types/meter';
 import type { Report } from '../types/report';
 
 // Health
 export const getHealth = () => api.get<HealthStatus>('/health');
 
+// Devices
+export const getDevices = () => api.get<Device[]>('/devices');
+export const createDevice = (data: { name: string; host: string; port: number; unit_id?: number; poll_interval?: number }) =>
+  api.post<Device>('/devices', data);
+export const getDevice = (id: string) => api.get<Device>(`/devices/${id}`);
+export const updateDevice = (id: string, data: Partial<Device>) =>
+  api.put<Device>(`/devices/${id}`, data);
+export const deleteDevice = (id: string) => api.delete(`/devices/${id}`);
+export const testDeviceConnection = (id: string) => api.post<{ connected: boolean }>(`/devices/${id}/test`);
+
 // Measurements
-export const getMeasurements = () => api.get<Measurement[]>('/measurements');
-export const createMeasurement = (data: { name: string; description?: string; point_name?: string }) =>
+export const getMeasurements = (device_id?: string) =>
+  api.get<Measurement[]>('/measurements', { params: device_id ? { device_id } : {} });
+export const createMeasurement = (data: { device_id: string; name: string; description?: string; point_name?: string }) =>
   api.post<Measurement>('/measurements', data);
 export const getMeasurement = (id: string) => api.get<Measurement>(`/measurements/${id}`);
 export const measurementAction = (id: string, action: 'start' | 'stop' | 'compress') =>
@@ -55,10 +66,7 @@ export const generateReport = (data: {
 export const downloadReport = (id: string) =>
   api.get(`/reports/${id}/download`, { responseType: 'blob' });
 
-// Device Config
-export const getDeviceConfig = () => api.get<DeviceConfig>('/device/config');
-export const updateDeviceConfig = (data: Partial<DeviceConfig>) =>
-  api.put('/device/config', data);
-export const getReportConfig = () => api.get('/device/report-config');
+// Report Config
+export const getReportConfig = () => api.get('/reports/config');
 export const updateReportConfig = (data: Record<string, string>) =>
-  api.put('/device/report-config', data);
+  api.put('/reports/config', data);

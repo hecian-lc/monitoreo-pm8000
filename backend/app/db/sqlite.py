@@ -1,4 +1,4 @@
-"""SQLite database for measurements, device config, and report metadata."""
+"""SQLite database for devices, measurements, and report metadata."""
 
 import json
 import logging
@@ -11,8 +11,23 @@ import aiosqlite
 logger = logging.getLogger(__name__)
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS devices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    host TEXT NOT NULL DEFAULT '192.168.1.100',
+    port INTEGER DEFAULT 502,
+    unit_id INTEGER DEFAULT 1,
+    poll_interval REAL DEFAULT 1.0,
+    register_map TEXT DEFAULT 'pm8000_default.yaml',
+    byte_order TEXT DEFAULT 'big',
+    word_order TEXT DEFAULT 'big',
+    enabled INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS measurements (
     id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT DEFAULT '',
     point_name TEXT DEFAULT 'T.G.',
@@ -21,18 +36,8 @@ CREATE TABLE IF NOT EXISTS measurements (
     created_at TEXT NOT NULL,
     started_at TEXT,
     stopped_at TEXT,
-    compressed_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS device_config (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    host TEXT DEFAULT '192.168.1.100',
-    port INTEGER DEFAULT 502,
-    unit_id INTEGER DEFAULT 1,
-    poll_interval REAL DEFAULT 1.0,
-    register_map TEXT DEFAULT 'pm8000_default.yaml',
-    byte_order TEXT DEFAULT 'big',
-    word_order TEXT DEFAULT 'big'
+    compressed_at TEXT,
+    FOREIGN KEY (device_id) REFERENCES devices(id)
 );
 
 CREATE TABLE IF NOT EXISTS reports (
@@ -99,12 +104,6 @@ class Database:
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(SCHEMA)
         await self._db.commit()
-        # Insert default device config if not exists
-        async with self._db.execute("SELECT COUNT(*) FROM device_config") as cur:
-            row = await cur.fetchone()
-            if row[0] == 0:
-                await self._db.execute("INSERT INTO device_config DEFAULT VALUES")
-                await self._db.commit()
         # Insert default report config if not exists
         async with self._db.execute("SELECT COUNT(*) FROM report_config") as cur:
             row = await cur.fetchone()
@@ -118,36 +117,86 @@ class Database:
             await self._db.close()
             self._db = None
 
-    # ─── Measurements ───
+    # ─── Devices ───
 
-    async def create_measurement(
-        self, id: str, name: str, description: str = "", point_name: str = "T.G."
+    async def create_device(
+        self, id: str, name: str, host: str = "192.168.1.100",
+        port: int = 502, unit_id: int = 1, poll_interval: float = 1.0,
+        register_map: str = "pm8000_default.yaml",
+        byte_order: str = "big", word_order: str = "big",
     ) -> dict:
         now = datetime.utcnow().isoformat()
         await self._db.execute(
-            "INSERT INTO measurements (id, name, description, point_name, created_at) VALUES (?, ?, ?, ?, ?)",
-            (id, name, description, point_name, now),
+            "INSERT INTO devices (id, name, host, port, unit_id, poll_interval, register_map, byte_order, word_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (id, name, host, port, unit_id, poll_interval, register_map, byte_order, word_order, now),
+        )
+        await self._db.commit()
+        return await self.get_device(id)
+
+    async def get_device(self, id: str) -> dict | None:
+        async with self._db.execute("SELECT * FROM devices WHERE id = ?", (id,)) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+    async def list_devices(self) -> list[dict]:
+        async with self._db.execute("SELECT * FROM devices ORDER BY created_at DESC") as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+    async def update_device(self, id: str, **kwargs):
+        if not kwargs:
+            return
+        sets = [f"{k} = ?" for k in kwargs]
+        vals = list(kwargs.values())
+        vals.append(id)
+        await self._db.execute(
+            f"UPDATE devices SET {', '.join(sets)} WHERE id = ?", vals,
+        )
+        await self._db.commit()
+
+    async def delete_device(self, id: str):
+        # Delete related measurements and their reports
+        async with self._db.execute(
+            "SELECT id FROM measurements WHERE device_id = ?", (id,)
+        ) as cur:
+            rows = await cur.fetchall()
+            for row in rows:
+                await self._db.execute("DELETE FROM reports WHERE measurement_id = ?", (row["id"],))
+        await self._db.execute("DELETE FROM measurements WHERE device_id = ?", (id,))
+        await self._db.execute("DELETE FROM devices WHERE id = ?", (id,))
+        await self._db.commit()
+
+    # ─── Measurements ───
+
+    async def create_measurement(
+        self, id: str, device_id: str, name: str,
+        description: str = "", point_name: str = "T.G.",
+    ) -> dict:
+        now = datetime.utcnow().isoformat()
+        await self._db.execute(
+            "INSERT INTO measurements (id, device_id, name, description, point_name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (id, device_id, name, description, point_name, now),
         )
         await self._db.commit()
         return await self.get_measurement(id)
 
     async def get_measurement(self, id: str) -> dict | None:
-        async with self._db.execute(
-            "SELECT * FROM measurements WHERE id = ?", (id,)
-        ) as cur:
+        async with self._db.execute("SELECT * FROM measurements WHERE id = ?", (id,)) as cur:
             row = await cur.fetchone()
             return dict(row) if row else None
 
-    async def list_measurements(self) -> list[dict]:
-        async with self._db.execute(
-            "SELECT * FROM measurements ORDER BY created_at DESC"
-        ) as cur:
+    async def list_measurements(self, device_id: str | None = None) -> list[dict]:
+        if device_id:
+            sql = "SELECT * FROM measurements WHERE device_id = ? ORDER BY created_at DESC"
+            args = (device_id,)
+        else:
+            sql = "SELECT * FROM measurements ORDER BY created_at DESC"
+            args = ()
+        async with self._db.execute(sql, args) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
-    async def update_measurement_status(
-        self, id: str, status: str, **kwargs
-    ):
+    async def update_measurement_status(self, id: str, status: str, **kwargs):
         sets = ["status = ?"]
         vals = [status]
         for k, v in kwargs.items():
@@ -155,32 +204,13 @@ class Database:
             vals.append(v)
         vals.append(id)
         await self._db.execute(
-            f"UPDATE measurements SET {', '.join(sets)} WHERE id = ?",
-            vals,
+            f"UPDATE measurements SET {', '.join(sets)} WHERE id = ?", vals,
         )
         await self._db.commit()
 
     async def delete_measurement(self, id: str):
         await self._db.execute("DELETE FROM reports WHERE measurement_id = ?", (id,))
         await self._db.execute("DELETE FROM measurements WHERE id = ?", (id,))
-        await self._db.commit()
-
-    # ─── Device Config ───
-
-    async def get_device_config(self) -> dict:
-        async with self._db.execute("SELECT * FROM device_config WHERE id = 1") as cur:
-            row = await cur.fetchone()
-            return dict(row) if row else {}
-
-    async def update_device_config(self, **kwargs):
-        if not kwargs:
-            return
-        sets = [f"{k} = ?" for k in kwargs]
-        vals = list(kwargs.values())
-        await self._db.execute(
-            f"UPDATE device_config SET {', '.join(sets)} WHERE id = 1",
-            vals,
-        )
         await self._db.commit()
 
     # ─── Report Config ───
@@ -196,8 +226,7 @@ class Database:
         sets = [f"{k} = ?" for k in kwargs]
         vals = list(kwargs.values())
         await self._db.execute(
-            f"UPDATE report_config SET {', '.join(sets)} WHERE id = 1",
-            vals,
+            f"UPDATE report_config SET {', '.join(sets)} WHERE id = 1", vals,
         )
         await self._db.commit()
 
@@ -217,9 +246,7 @@ class Database:
         return await self.get_report(id)
 
     async def get_report(self, id: str) -> dict | None:
-        async with self._db.execute(
-            "SELECT * FROM reports WHERE id = ?", (id,)
-        ) as cur:
+        async with self._db.execute("SELECT * FROM reports WHERE id = ?", (id,)) as cur:
             row = await cur.fetchone()
             return dict(row) if row else None
 
@@ -241,8 +268,7 @@ class Database:
         vals = list(kwargs.values())
         vals.append(id)
         await self._db.execute(
-            f"UPDATE reports SET {', '.join(sets)} WHERE id = ?",
-            vals,
+            f"UPDATE reports SET {', '.join(sets)} WHERE id = ?", vals,
         )
         await self._db.commit()
 
@@ -259,16 +285,12 @@ class Database:
             (id, name, measurement_id, cron_expression, config_json, now),
         )
         await self._db.commit()
-        async with self._db.execute(
-            "SELECT * FROM report_schedules WHERE id = ?", (id,)
-        ) as cur:
+        async with self._db.execute("SELECT * FROM report_schedules WHERE id = ?", (id,)) as cur:
             row = await cur.fetchone()
             return dict(row)
 
     async def list_schedules(self) -> list[dict]:
-        async with self._db.execute(
-            "SELECT * FROM report_schedules ORDER BY created_at DESC"
-        ) as cur:
+        async with self._db.execute("SELECT * FROM report_schedules ORDER BY created_at DESC") as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
@@ -279,8 +301,7 @@ class Database:
         vals = list(kwargs.values())
         vals.append(id)
         await self._db.execute(
-            f"UPDATE report_schedules SET {', '.join(sets)} WHERE id = ?",
-            vals,
+            f"UPDATE report_schedules SET {', '.join(sets)} WHERE id = ?", vals,
         )
         await self._db.commit()
 

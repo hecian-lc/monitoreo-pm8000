@@ -31,7 +31,7 @@ class InfluxWriter:
         self,
         readings: dict[str, Any],
         measurement_id: str,
-        device_id: str = "pm8000_01",
+        device_id: str,
         timestamp: datetime | None = None,
     ):
         """Write a set of readings as InfluxDB points.

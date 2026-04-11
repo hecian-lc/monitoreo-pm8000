@@ -1,11 +1,10 @@
 """Pydantic models for measurements."""
 
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 
 class MeasurementCreate(BaseModel):
+    device_id: str
     name: str = Field(..., min_length=1, max_length=200)
     description: str = ""
     point_name: str = "T.G."
@@ -13,6 +12,7 @@ class MeasurementCreate(BaseModel):
 
 class MeasurementResponse(BaseModel):
     id: str
+    device_id: str
     name: str
     description: str
     point_name: str

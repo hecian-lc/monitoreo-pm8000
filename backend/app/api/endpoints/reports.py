@@ -137,3 +137,19 @@ async def delete_schedule(schedule_id: str):
     db = get_db()
     await db.delete_schedule(schedule_id)
     return {"status": "deleted"}
+
+
+# ─── Report Config ───
+
+@router.get("/config")
+async def get_report_config():
+    db = get_db()
+    return await db.get_report_config()
+
+
+@router.put("/config")
+async def update_report_config(body: dict):
+    db = get_db()
+    if body:
+        await db.update_report_config(**body)
+    return await db.get_report_config()
