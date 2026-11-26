@@ -11,13 +11,23 @@ export interface Measurement {
   compressed_at: string | null;
 }
 
-export interface RealtimeMessage {
-  type: 'readings' | 'status';
+// Lo que manda el backend por /ws/realtime (collector/broadcast.py)
+export interface ReadingsMessage {
+  type: 'readings';
   timestamp: string;
   connected: boolean;
   measurement_id: string | null;
   data: Record<string, number>;
 }
+
+export interface StatusMessage {
+  type: 'status';
+  timestamp: string;
+  status: string;
+  message: string;
+}
+
+export type RealtimeMessage = ReadingsMessage | StatusMessage;
 
 export interface DataRecord {
   time: string;

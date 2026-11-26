@@ -23,7 +23,7 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
         timestamp: msg.timestamp,
       });
     } else if (msg.type === 'status') {
-      set({ connected: (msg as any).status === 'connected' });
+      set({ connected: msg.status === 'connected' });
     }
   },
 }));
