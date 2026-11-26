@@ -20,8 +20,8 @@ export function useHistoricalData() {
     try {
       const res = await queryData(params);
       setData(res.data.data);
-    } catch (e: any) {
-      setError(e.message || 'Error fetching data');
+    } catch (e: unknown) {
+      setError(e instanceof Error && e.message ? e.message : 'Error fetching data');
     } finally {
       setLoading(false);
     }

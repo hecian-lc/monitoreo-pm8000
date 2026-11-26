@@ -8,16 +8,13 @@ import { Download } from 'lucide-react';
 export default function DataTable() {
   const { measurements, fetch: fetchMeasurements } = useMeasurementStore();
   const { data, loading, fetch: fetchData } = useHistoricalData();
-  const [measurementId, setMeasurementId] = useState('');
+  // Hasta que se elija una, se usa la primera medición de la lista.
+  const [elegida, setMeasurementId] = useState('');
+  const measurementId = elegida || measurements[0]?.id || '';
   const [start, setStart] = useState(format(subDays(new Date(), 1), "yyyy-MM-dd'T'HH:mm"));
   const [end, setEnd] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
 
   useEffect(() => { fetchMeasurements(); }, []);
-  useEffect(() => {
-    if (measurements.length > 0 && !measurementId) {
-      setMeasurementId(measurements[0].id);
-    }
-  }, [measurements]);
 
   const handleQuery = () => {
     if (!measurementId) return;

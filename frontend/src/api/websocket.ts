@@ -28,7 +28,9 @@ export class WebSocketManager {
         try {
           const msg: RealtimeMessage = JSON.parse(event.data);
           this.handlers.forEach((h) => h(msg));
-        } catch {}
+        } catch {
+          // Mensaje que no es JSON: se descarta, el próximo llega en el siguiente ciclo.
+        }
       };
 
       this.ws.onclose = () => {
@@ -41,7 +43,10 @@ export class WebSocketManager {
       this.ws.onerror = () => {
         this.ws?.close();
       };
-    } catch {}
+    } catch {
+      // URL inválida o WebSocket no disponible: no hay conexión posible y no se
+      // reintenta (onclose no se dispara). La vista queda como desconectada.
+    }
   }
 
   disconnect() {
